@@ -1,0 +1,22 @@
+#!/bin/bash -x
+export WRAP_BUFFER_TRACE_ENABLE=true
+if ! [[ ${SQL_DRIVER:-} ]]; then
+    echo Required SQL_DRIVER variable is unset
+    return 1
+else
+    case ${SQL_DRIVER} in
+        pgsql|postgres)
+            export SQL_DRIVER=postgres
+            export SQL_PORT=5432
+            export SQL_HOST=localhost
+            ;;
+        mysql)
+            export SQL_DRIVER=mysql
+            export SQL_HOST=localhost
+            export SQL_PORT=3306
+            ;;
+    esac
+    export SQL_DATABASE=gorilla
+    export SQL_USER=gorilla
+    export SQL_PASSWORD=gorilla
+fi
