@@ -42,8 +42,8 @@
 
 CREATE USER gorilla WITH PASSWORD 'gorilla'; 
 
-\c gorilla;
 CREATE DATABASE gorilla;
+\c gorilla;
 
 GRANT ALL ON DATABASE gorilla TO gorilla;
 

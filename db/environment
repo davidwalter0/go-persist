@@ -1,4 +1,5 @@
 #!/bin/bash -x
+export SQL_DRIVER=postgres
 export WRAP_BUFFER_TRACE_ENABLE=true
 if ! [[ ${SQL_DRIVER:-} ]]; then
     echo Required SQL_DRIVER variable is unset

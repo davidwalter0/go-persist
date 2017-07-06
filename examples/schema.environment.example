@@ -1,0 +1,61 @@
+#!/bin/bash
+export SCHEMA_DRIVER=postgres
+export WRAP_BUFFER_TRACE_ENABLE=true
+if ! [[ ${SCHEMA_DRIVER:-} ]]; then
+    echo Required SCHEMA_DRIVER variable is unset
+    return 1
+else
+    case ${SCHEMA_DRIVER} in
+        pgsql|postgres)
+            export SCHEMA_DRIVER=postgres
+            export SCHEMA_PORT=5432
+            export SCHEMA_HOST=localhost
+            ;;
+        mysql)
+            export SCHEMA_DRIVER=mysql
+            export SCHEMA_HOST=localhost
+            export SCHEMA_PORT=3306
+            ;;
+    esac
+    export SCHEMA_DATABASE=schema
+    export SCHEMA_USER=
+    export SCHEMA_PASSWORD=
+fi
+if false ; then
+function create_db {
+
+    sudo -u postgres psql -U postgres -d postgres -f - <<EOF
+
+CREATE USER ${SCHEMA_USER} WITH PASSWORD '${SCHEMA_PASSWORD}'; 
+
+CREATE DATABASE ${SCHEMA_DATABASE};
+
+\c ${SCHEMA_DATABASE};
+
+GRANT ALL ON DATABASE ${SCHEMA_DATABASE} TO ${SCHEMA_USER};
+
+GRANT ALL PRIVILEGES ON DATABASE ${SCHEMA_DATABASE} to ${SCHEMA_USER};
+
+GRANT ALL PRIVILEGES ON TABLE schema to schema;
+
+EOF
+}
+
+cat <<EOF
+CREATE USER ${SCHEMA_USER} WITH PASSWORD '${SCHEMA_PASSWORD}'; 
+
+CREATE DATABASE ${SCHEMA_DATABASE};
+
+\c ${SCHEMA_DATABASE};
+
+GRANT ALL ON DATABASE ${SCHEMA_DATABASE} TO ${SCHEMA_USER};
+
+GRANT ALL PRIVILEGES ON DATABASE ${SCHEMA_DATABASE} to ${SCHEMA_USER};
+
+GRANT ALL PRIVILEGES ON TABLE schema to schema;
+
+EOF
+fi
+create_db
+
+/usr/local/go/bin/go run schema.go

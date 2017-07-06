@@ -1,5 +1,5 @@
 ---
-persist is an abstraction on top of db components
+go-persist is a persistent abstraction on top of db components
 
 The following environment variables are used to configure the database
 

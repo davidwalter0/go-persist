@@ -9,14 +9,13 @@ import (
 
 // Database driver info configure object
 type Database struct {
-	Driver   string        // database driver for backend, e.g. mysql, psql
-	Host     string        // host of database
-	Port     int           // port on which db
-	Database string        // db name
-	User     string        // db user
-	Password string        // user password
-	DropAll  bool          // re-initialize schema [for testing]
-	Timeout  time.Duration //
+	Driver   string        `usage:"database driver for backend, e.g. mysql, psql"`
+	Host     string        `usage:"host of database"`
+	Port     int           `usage:"port on which database"`
+	Database string        `usage:"database name"`
+	User     string        `usage:"database user name"`
+	Password string        `usage:"database user password"`
+	Timeout  time.Duration `usage:"connect timeout"`
 	*sql.DB  `ignore:"true"`
 }
 

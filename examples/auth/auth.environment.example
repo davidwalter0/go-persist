@@ -1,0 +1,84 @@
+#!/bin/bash
+export SCHEMA_DRIVER=postgres
+export AUTH_DRIVER=postgres
+export WRAP_BUFFER_TRACE_ENABLE=true
+if ! [[ ${AUTH_DRIVER:-} ]]; then
+    echo Required AUTH_DRIVER variable is unset
+    return 1
+else
+    case ${AUTH_DRIVER} in
+        pgsql|postgres)
+            export AUTH_DRIVER=postgres
+            export AUTH_PORT=5432
+            export AUTH_HOST=localhost
+            ;;
+        mysql)
+            export AUTH_DRIVER=mysql
+            export AUTH_HOST=localhost
+            export AUTH_PORT=3306
+            ;;
+    esac
+    export AUTH_DATABASE=auth
+    export AUTH_USER=UID
+    export AUTH_PASSWORD=*****
+fi
+
+if ! [[ ${SCHEMA_DRIVER:-} ]]; then
+    echo Required SCHEMA_DRIVER variable is unset
+    return 1
+else
+    case ${SCHEMA_DRIVER} in
+        pgsql|postgres)
+            export SCHEMA_DRIVER=postgres
+            export SCHEMA_PORT=5432
+            export SCHEMA_HOST=localhost
+            ;;
+        mysql)
+            export SCHEMA_DRIVER=mysql
+            export SCHEMA_HOST=localhost
+            export SCHEMA_PORT=3306
+            ;;
+    esac
+    export SCHEMA_DATABASE=schema
+    export SCHEMA_USER=UID
+    export SCHEMA_PASSWORD=*****
+fi
+
+if true ; then
+function create_db {
+
+    sudo -u postgres psql -U postgres -d postgres -f - <<EOF
+
+CREATE USER ${AUTH_USER} WITH PASSWORD '${AUTH_PASSWORD}'; 
+
+CREATE DATABASE ${AUTH_DATABASE};
+
+\c ${AUTH_DATABASE};
+
+GRANT ALL ON DATABASE ${AUTH_DATABASE} TO ${AUTH_USER};
+
+GRANT ALL PRIVILEGES ON DATABASE ${AUTH_DATABASE} to ${AUTH_USER};
+
+GRANT ALL PRIVILEGES ON TABLE auth to auth;
+
+EOF
+}
+
+cat <<EOF
+CREATE USER ${AUTH_USER} WITH PASSWORD '${AUTH_PASSWORD}'; 
+
+CREATE DATABASE ${AUTH_DATABASE};
+
+\c ${AUTH_DATABASE};
+
+GRANT ALL ON DATABASE ${AUTH_DATABASE} TO ${AUTH_USER};
+
+GRANT ALL PRIVILEGES ON DATABASE ${AUTH_DATABASE} to ${AUTH_USER};
+
+GRANT ALL PRIVILEGES ON TABLE auth to auth;
+
+EOF
+fi
+create_db
+/usr/local/go/bin/go run createdb.go auth.go
+

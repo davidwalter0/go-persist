@@ -1,20 +1,13 @@
 package mysql
 
 import (
-	uuid "github.com/davidwalter0/go-persist/uuid"
-
 	"database/sql"
-	"fmt"
+	schema "github.com/davidwalter0/go-persist/schema"
 	_ "github.com/go-sql-driver/mysql"
+
+	"fmt"
 	"log"
-	"time"
 )
-
-var DropAll bool
-
-func Reinitialize() {
-	DropAll = true
-}
 
 func checkErr(err error) {
 	if err != nil {
@@ -23,6 +16,7 @@ func checkErr(err error) {
 	}
 }
 
+// Connect using driver and database name
 func Connect(driver, db string) *sql.DB {
 	DB, err := sql.Open(driver, db)
 	checkErr(err)
@@ -31,8 +25,8 @@ func Connect(driver, db string) *sql.DB {
 
 // Schema given that permissions grant table configuration, initialize the
 // current database tables for this project.
-var Schema map[string][]string = map[string][]string{
-	"pages": []string{
+var Schema = schema.DBSchema{
+	"pages": schema.SchemaText{
 		`CREATE TABLE pages (
        id int(11) unsigned NOT NULL AUTO_INCREMENT,
        page_guid varchar(256) NOT NULL DEFAULT '',
@@ -43,7 +37,7 @@ var Schema map[string][]string = map[string][]string{
        UNIQUE KEY page_guid (page_guid)
        ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1`,
 	},
-	"comments": []string{
+	"comments": schema.SchemaText{
 		`CREATE TABLE comments (
        id int(11) unsigned NOT NULL AUTO_INCREMENT,
        page_id int(11) NOT NULL,
@@ -56,7 +50,7 @@ var Schema map[string][]string = map[string][]string{
        KEY page_id (page_id)
        ) ENGINE=InnoDB DEFAULT CHARSET=latin1`,
 	},
-	"users": []string{
+	"users": schema.SchemaText{
 
 		`CREATE TABLE users (
        id int(11) unsigned NOT NULL AUTO_INCREMENT,
@@ -69,7 +63,7 @@ var Schema map[string][]string = map[string][]string{
        PRIMARY KEY (id)
      ) ENGINE=InnoDB DEFAULT CHARSET=latin1;`,
 	},
-	"sessions": []string{
+	"sessions": schema.SchemaText{
 		`CREATE TABLE sessions (
        id int(11) unsigned NOT NULL AUTO_INCREMENT,
        session_id varchar(256) NOT NULL DEFAULT '',
@@ -83,53 +77,25 @@ var Schema map[string][]string = map[string][]string{
 	},
 }
 
-func Initialize(db *sql.DB, Schema map[string][]string) {
+// DropAll remove the tables in this schema
+func DropAll(db *sql.DB, Schema schema.DBSchema) {
+	for table, _ := range Schema {
+		fmt.Println(db.QueryRow(fmt.Sprintf(`DROP TABLE %s cascade;`, table)))
+	}
+}
+
+// Initialize a database from the given schema, the create operation
+// is idempotent, and can be called multiple times without issues, if
+// DropAll is false. Assumes that the uid running the process has
+// given that permissions granted for table configuration, initialize
+// the current database tables for this project.
+func Initialize(db *sql.DB, Schema schema.DBSchema) {
 	// fmt.Println(db.QueryRow(`DROP TABLE pages cascade;`))
 	for table, schema := range Schema {
 		// fmt.Println(db.QueryRow(`DROP TABLE pages cascade;`))
-		if DropAll {
-			fmt.Println(db.QueryRow(fmt.Sprintf(`DROP TABLE %s cascade;`, table)))
-		}
 		for _, scheme := range schema {
 			fmt.Printf("\ndb.QueryRow: %s:\n%s\n", table, scheme)
 			fmt.Println(db.QueryRow(scheme))
 		}
-		// fmt.Println(db.Exec(table))
 	}
-	// for _, table := range Schema {
-	// 	fmt.Printf("\ndb.QueryRow:\n%s\n", table)
-	// 	fmt.Println(db.QueryRow(table))
-	// }
-	// 	fmt.Println(db.QueryRow(`
-	// CREATE TABLE pages (
-	//   id int(11) unsigned NOT NULL AUTO_INCREMENT,
-	//   page_guid varchar(256) NOT NULL DEFAULT '',
-	//   page_title varchar(256) DEFAULT NULL,
-	//   page_content mediumtext,
-	//   page_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-	//   PRIMARY KEY (id),
-	//   UNIQUE KEY page_guid (page_guid)
-	// ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
-	// `))
-	guid := uuid.GUID().String()
-	fmt.Println("guid", guid)
-	row := db.QueryRow("INSERT INTO pages (page_guid, page_title, page_content, page_date) VALUES ('" + guid + "', 'Hello, World', 'I''m so glad you found this page!  It''s been sitting patiently on the Internet for some time, just waiting for a visitor.', CURRENT_TIMESTAMP)")
-	fmt.Printf("%v\n", *row)
-	// fmt.Println("another one")
-
-	rows, err := db.Query("select * from pages")
-	if err != nil {
-		panic(err.Error())
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var page_id int
-		var page_guid string
-		var page_title string
-		var page_content string
-		var page_date time.Time
-		rows.Scan(&page_id, &page_guid, &page_title, &page_content, &page_date)
-		fmt.Println(page_id, page_guid, page_title, page_content, page_date)
-	}
-
 }

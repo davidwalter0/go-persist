@@ -4,19 +4,20 @@ import (
 	"database/sql"
 	"os"
 
+	"github.com/davidwalter0/go-cfg"
 	"github.com/davidwalter0/go-persist/mysql"
 	"github.com/davidwalter0/go-persist/pgsql"
+	"github.com/davidwalter0/go-persist/schema"
 
 	"fmt"
 
-	"github.com/davidwalter0/envflagstructconfig"
 	"log"
 
 	"encoding/json"
 	"io/ioutil"
 )
 
-var drivers []string = []string{
+var drivers = []string{
 	"mysql",
 	"postgres",
 	"pgsql",
@@ -49,19 +50,33 @@ type Handle interface {
 func CheckError(err error) {
 	if err != nil {
 		log.Println(err)
-		// panic(err)
+		panic(err)
 	}
 }
 
+// Configure the Database struct from the environment or flags
 func (db *Database) Configure() {
-	envflagstructconfig.Process("SQL", db)
+	cfg.Process("SQL", db)
 	var jsonText []byte
 	jsonText, _ = json.MarshalIndent(db, "", "  ")
-	// fmt.Printf("\n%v\n", string(jsonText))
-	ioutil.WriteFile("tmp.xyz.json", jsonText, 0777)
-	// log.Printf("%v\n", db)
+	_ = ioutil.WriteFile("Configure.SQL.json", jsonText, 0777)
 }
 
+// ConfigEnvWPrefix fill an object with environment vars, if last call
+// generate flags
+func (db *Database) ConfigEnvWPrefix(envPrefix string, lastCall bool) {
+	if lastCall {
+		cfg.Process(envPrefix, db)
+	} else {
+		cfg.ProcessHoldFlags(envPrefix, db)
+	}
+	var jsonText []byte
+	jsonText, _ = json.MarshalIndent(db, "", "  ")
+	_ = ioutil.WriteFile("ConfigEnvWPrefix."+envPrefix+".json", jsonText, 0777)
+}
+
+// ConnectString returns the db driver connectoin protocol string from
+// the configured Database struct
 func (db *Database) ConnectString() (text string) {
 
 	switch db.DriverName() {
@@ -76,8 +91,8 @@ func (db *Database) ConnectString() (text string) {
 	return
 }
 
+// Connect to the backend for the Database driver specified
 func (db *Database) Connect() *Database {
-	db.Configure()
 	switch db.DriverName() {
 	case "pgsql", "postgres":
 		fmt.Println(">", db.ConnectString())
@@ -92,15 +107,15 @@ func (db *Database) Connect() *Database {
 	return db
 }
 
-func (db *Database) Initialize() {
+// Initialize a database from a schema definition iterating over the
+// schema definition for each table and definition
+func (db *Database) Initialize(schema schema.DBSchema) {
 	switch db.DriverName() {
 	case "pgsql", "postgres":
-		pgsql.Reinitialize()
-		pgsql.Initialize(db.DB, pgsql.Schema)
+		pgsql.Initialize(db.DB, schema)
 		return
 	case "mysql":
-		mysql.Reinitialize()
-		mysql.Initialize(db.DB, mysql.Schema)
+		mysql.Initialize(db.DB, schema)
 		return
 	default:
 		panic(fmt.Sprintf("Connect: driver mode unknown or empty %s valid drivers %v", db.DriverName(), db.DriverNames()))
@@ -108,24 +123,43 @@ func (db *Database) Initialize() {
 	return
 }
 
+// Close the Database connection
 func (db *Database) Close() {
 	err := db.DB.Close()
 	CheckError(err)
 }
 
+// Insert a row to a database with optional arguments
 func (db *Database) Insert(insert string, args ...interface{}) *sql.Row {
 	row := db.DB.QueryRow(insert, args...)
 	return row
 }
 
+// Query rows from a database
 func (db *Database) Query(query string, args ...interface{}) *sql.Rows {
 	rows, err := db.DB.Query(query, args...)
 	CheckError(err)
 	return rows
 }
 
+// Prepare a query statement object
 func (db *Database) Prepare(prepare string) *sql.Stmt {
 	statement, err := db.DB.Prepare(prepare)
 	CheckError(err)
 	return statement
+}
+
+// DropAll remove the tables in this schema
+func (db *Database) DropAll(Schema schema.DBSchema) {
+	switch db.DriverName() {
+	case "pgsql", "postgres":
+		pgsql.DropAll(db.DB, Schema)
+		return
+	case "mysql":
+		mysql.DropAll(db.DB, Schema)
+		return
+	default:
+		panic(fmt.Sprintf("DropAll tables: required driver mode unknown or empty %s valid drivers %v", db.DriverName(), db.DriverNames()))
+	}
+
 }

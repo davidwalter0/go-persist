@@ -2,5 +2,5 @@
 	"comment": "",
 	"ignore": "test",
 	"package": [],
-	"rootPath": "github.com/davidwalter0/persist"
+	"rootPath": "github.com/davidwalter0/go-persist"
 }
