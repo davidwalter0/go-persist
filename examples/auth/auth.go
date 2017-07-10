@@ -121,7 +121,7 @@ func (auth *Auth) CopyAuth(from *Auth) {
 	auth.db = from.db
 }
 
-// CopyAuth initialize an auth struct, notice that email uses account
+// CopyKey initialize an auth struct, notice that email uses account
 func (auth *Auth) CopyKey(from *Auth) {
 	auth.Email = from.Email
 	auth.Issuer = from.Issuer
