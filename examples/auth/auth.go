@@ -2,6 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"encoding/base32"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"time"
@@ -9,16 +11,20 @@ import (
 	"github.com/davidwalter0/go-persist"
 	"github.com/davidwalter0/go-persist/schema"
 	"github.com/davidwalter0/go-persist/uuid"
+	"github.com/davidwalter0/twofactor"
 )
 
 var authDB = &persist.Database{}
+var standAlone bool
 
 func init() {
-	authDB.ConfigEnvWPrefix("AUTH", false)
-	authDB.Connect()
-	authDB.DropAll(AuthSchema)
-	authDB.Initialize(AuthSchema)
-	log.Println(*authDB)
+	if standAlone {
+		authDB.ConfigEnvWPrefix("AUTH", false)
+		authDB.Connect()
+		authDB.DropAll(AuthSchema)
+		authDB.Initialize(AuthSchema)
+		log.Println(*authDB)
+	}
 }
 
 // AuthSchema describes the table and triggers for persisting
@@ -51,13 +57,13 @@ var AuthSchema = schema.DBSchema{
 	},
 }
 
-// Auth accessible object for database authentication table
-// I/O
+// AuthKey accessible object for database authentication table I/O
 type AuthKey struct {
 	Email  string `json:"email"`
 	Issuer string `json:"issuer"`
 }
 
+// Auth object db I/O for auth table
 type Auth struct {
 	ID      int               `json:"id"`
 	GUID    string            `json:"guid"`
@@ -69,24 +75,62 @@ type Auth struct {
 	Changed time.Time         `json:"changed"`
 	Key     string            `json:"key"  usage:"base32 encoded totp key"`
 	Totp    string            `json:"totp" usage:"base64 encoded totp object"`
-	DB      *persist.Database `ignore:"true"`
+	db      *persist.Database `ignore:"true"`
+	totp    []byte            `ignore:"true"` // raw otp bytes
+	key     []byte            `ignore:"true"` // raw key bytes
+	png     []byte            `ignore:"true"` // PNG byte array
+	otp     *twofactor.Totp   `ignore:"true"` // OTP object
 }
 
-type DBIO interface {
-	Create() error
-	Read() error
-	Update() error
-	Delete() error
+// NewKey create the key fields for an auth struct, notice that email
+// uses account
+func NewKey(email, issuer string) *Auth {
+	return &Auth{
+		Email:  email,
+		Issuer: issuer,
+		db:     authDB,
+	}
 }
 
-// NewAuth creates an auth object and initializes the
-// connection object
-func NewAuth(authDB *persist.Database) *Auth {
-	return &Auth{DB: authDB}
+// NewAuth initialize an auth struct, notice that email uses account
+func NewAuth(email, issuer, hash string, key, totpBytes []byte, digits int) *Auth {
+	return &Auth{
+		Email:  email,
+		Issuer: issuer,
+		Hash:   "sha1",
+		Digits: digits,
+		Totp:   base64.StdEncoding.EncodeToString(totpBytes),
+		Key:    base32.StdEncoding.EncodeToString(key),
+		totp:   totpBytes,
+		db:     authDB,
+	}
 }
 
+// CopyAuth initialize an auth struct, notice that email uses account
+func (auth *Auth) CopyAuth(from *Auth) {
+	auth.Email = from.Email
+	auth.Issuer = from.Issuer
+	auth.Hash = from.Hash
+	auth.Digits = from.Digits
+	auth.Totp = from.Totp
+	auth.Key = from.Key
+	auth.totp = from.totp
+	auth.key = from.key
+	auth.otp = from.otp
+	auth.png = from.png
+	auth.db = from.db
+}
+
+// CopyAuth initialize an auth struct, notice that email uses account
+func (auth *Auth) CopyKey(from *Auth) {
+	auth.Email = from.Email
+	auth.Issuer = from.Issuer
+	auth.db = from.db
+}
+
+// Create a row in a table
 func (auth *Auth) Create() {
-	authDB := auth.DB
+	authDB := auth.db
 	// ignore DB & id
 	insert := fmt.Sprintf(`
 INSERT INTO auth 
@@ -114,8 +158,10 @@ VALUES ('%s', '%s', '%s', '%s', %d, '%s', '%s', CURRENT_TIMESTAMP, CURRENT_TIMES
 	fmt.Println("Count", auth.Count())
 }
 
-func (auth *Auth) Read() {
-	authDB := auth.DB
+// Read row from db using auth key fields for query
+func (auth *Auth) Read() bool {
+	log.Println(*auth)
+	authDB := auth.db
 	// ignore DB & id
 	query := fmt.Sprintf(`
 SELECT 
@@ -168,11 +214,14 @@ AND
 			auth.Created,
 			auth.Changed)
 	}
-	fmt.Println("Count", auth.Count())
+	count := auth.Count()
+	fmt.Println("Count", count)
+	return count != 0
 }
 
+// Update row from db using auth key fields
 func (auth *Auth) Update() {
-	authDB := auth.DB
+	authDB := auth.db
 	// ignore DB & id
 	update := fmt.Sprintf(`
 UPDATE
@@ -233,8 +282,9 @@ AND
 	fmt.Println("Count", auth.Count())
 }
 
+// Delete row from db using auth key fields
 func (auth *Auth) Delete() {
-	authDB := auth.DB
+	authDB := auth.db
 	// ignore DB & id
 	delete := fmt.Sprintf(`
 DELETE FROM
@@ -287,7 +337,7 @@ AND
 
 // Count rows for keys in auth
 func (auth *Auth) Count() (count int) {
-	authDB := auth.DB
+	authDB := auth.db
 	query := fmt.Sprintf(`
 SELECT
   COUNT(*) 

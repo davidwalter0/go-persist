@@ -28,14 +28,14 @@ func main() {
 	var authDB = &persist.Database{}
 	var schemaDB = &persist.Database{}
 
-	log.Println(*authDB)
 	authDB.ConfigEnvWPrefix("AUTH", false)
-	// authDB.Configure()
+	schemaDB.ConfigEnvWPrefix("SCHEMA", false)
+
 	authDB.Connect()
 	defer authDB.Close()
+
 	authDB.DropAll(AuthSchema)
 	authDB.Initialize(AuthSchema)
-	log.Println(*authDB)
 
 	format = "Database: %v\nPort: %d\nUser: %s\nPassword: %s\nHost: %s\n"
 	_, err = fmt.Printf(format, authDB.Database, authDB.Port, authDB.User, authDB.Password, authDB.Host)
@@ -43,7 +43,6 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	schemaDB.ConfigEnvWPrefix("SCHEMA", true)
 	schemaDB.Connect()
 	defer schemaDB.Close()
 
@@ -62,12 +61,11 @@ INSERT INTO schema
 ( schema_guid, 
   schema_database,
   schema_text,
-  schema_created) 
+  schema_created
+) 
 VALUES ('%s', '%s', '%s', CURRENT_TIMESTAMP)`,
 			uuid.GUID().String(),
-			database, // table
-			// database,
-			// table+":"+uuid.GUID().String(), // table
+			database,
 			Escape(AuthSchema.String()),
 		)
 		fmt.Println(schemaDB.Exec(insert))
@@ -98,19 +96,14 @@ VALUES ('%s', '%s', '%s', CURRENT_TIMESTAMP)`,
 			schemaChanged)
 	}
 
-	// key := &AuthKey{Email: "walter.david@gmail.com", Issuer: "vpn0.me"}
-	auth := &Auth{Email: "walter.david@gmail.com", Issuer: "vpn0.me", Key: "fake key: 67b9cecb-6071-11e7-93b5-68f7284fe468", Totp: "fake totp: base64...", GUID: "67b9cecb-6071-11e7-93b5-68f7284fe468", Hash: "sha1", Digits: 6, DB: authDB}
-
-	check := NewAuth(authDB)
-	check.Email = auth.Email
-	check.Issuer = auth.Issuer
-
-	deleter := NewAuth(authDB)
-	deleter.Email = auth.Email
-	deleter.Issuer = auth.Issuer
+	auth := &Auth{Email: "walter.david@gmail.com", Issuer: "vpn0.me", Key: "fake key: 67b9cecb-6071-11e7-93b5-68f7284fe468", Totp: "fake totp: base64...", GUID: "67b9cecb-6071-11e7-93b5-68f7284fe468", Hash: "sha1", Digits: 6, db: authDB}
+	check := &Auth{}
+	deleter := &Auth{}
+	check.CopyKey(auth)
+	deleter.CopyKey(auth)
 
 	auth.Create()
-	fmt.Println(auth)
+	fmt.Println("auth", auth)
 	check.Read()
 	fmt.Println(check)
 	auth.Totp = "another fake totp"
