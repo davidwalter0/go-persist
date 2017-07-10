@@ -23,7 +23,6 @@ func init() {
 		authDB.Connect()
 		authDB.DropAll(AuthSchema)
 		authDB.Initialize(AuthSchema)
-		log.Println(*authDB)
 	}
 }
 
@@ -160,7 +159,6 @@ VALUES ('%s', '%s', '%s', '%s', %d, '%s', '%s', CURRENT_TIMESTAMP, CURRENT_TIMES
 
 // Read row from db using auth key fields for query
 func (auth *Auth) Read() bool {
-	log.Println(*auth)
 	authDB := auth.db
 	// ignore DB & id
 	query := fmt.Sprintf(`
