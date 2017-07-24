@@ -17,6 +17,10 @@ import (
 	"io/ioutil"
 )
 
+// debugging is not a secure property, and may write insecure
+// information
+var debugging bool
+
 var drivers = []string{
 	"mysql",
 	"postgres",
@@ -72,7 +76,9 @@ func (db *Database) ConfigEnvWPrefix(envPrefix string, lastCall bool) {
 	}
 	var jsonText []byte
 	jsonText, _ = json.MarshalIndent(db, "", "  ")
-	_ = ioutil.WriteFile("ConfigEnvWPrefix."+envPrefix+".json", jsonText, 0777)
+	if debugging { // insecure option
+		_ = ioutil.WriteFile("ConfigEnvWPrefix."+envPrefix+".json", jsonText, 0777)
+	}
 }
 
 // ConnectString returns the db driver connectoin protocol string from
