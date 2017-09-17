@@ -1,13 +1,17 @@
 package pgsql
 
 import (
+	"fmt"
+	"log"
+	"strings"
+
 	schema "github.com/davidwalter0/go-persist/schema"
 
 	"database/sql"
-	"fmt"
 	_ "github.com/lib/pq"
-	"log"
 )
+
+var debugging = false
 
 func checkErr(err error) {
 	if err != nil {
@@ -108,8 +112,14 @@ var Schema = schema.DBSchema{
 
 // DropAll remove the tables in this schema
 func DropAll(db *sql.DB, Schema schema.DBSchema) {
-	for table, _ := range Schema {
-		fmt.Println(db.QueryRow(fmt.Sprintf(`DROP TABLE %s cascade;`, table)))
+	for table := range Schema {
+		if debugging {
+			fmt.Println("DROP TABLE", table)
+		}
+		_, err := db.Exec(fmt.Sprintf(`DROP TABLE %s cascade;`, table))
+		if err != nil && strings.Index(fmt.Sprintf("%v", err), "does not exist") == -1 {
+			panic(fmt.Sprintf("%v", err))
+		}
 	}
 }
 
@@ -122,8 +132,13 @@ func Initialize(db *sql.DB, Schema schema.DBSchema) {
 	for table, schema := range Schema {
 		// fmt.Println(db.QueryRow(`DROP TABLE pages cascade;`))
 		for _, scheme := range schema {
-			fmt.Printf("\ndb.QueryRow: %s:\n%s\n", table, scheme)
-			fmt.Println(db.QueryRow(scheme))
+			if debugging {
+				fmt.Printf("\ndb.QueryRow: %s:\n%s\n", table, scheme)
+			}
+			_, err := db.Exec(scheme)
+			if err != nil {
+				panic(fmt.Sprintf("%v", err))
+			}
 		}
 	}
 }

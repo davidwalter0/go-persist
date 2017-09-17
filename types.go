@@ -9,14 +9,16 @@ import (
 
 // Database driver info configure object
 type Database struct {
-	Driver   string        `usage:"database driver for backend, e.g. mysql, psql"`
-	Host     string        `usage:"host of database"`
-	Port     int           `usage:"port on which database"`
-	Database string        `usage:"database name"`
-	User     string        `usage:"database user name"`
-	Password string        `usage:"database user password"`
-	Timeout  time.Duration `usage:"connect timeout"`
-	*sql.DB  `ignore:"true"`
+	Driver           string        `usage:"database driver for backend, e.g. mysql, psql"`
+	Host             string        `usage:"host of database"`
+	Port             int           `usage:"port on which database"`
+	Database         string        `usage:"database name"`
+	User             string        `usage:"database user name"`
+	Password         string        `usage:"database user password"`
+	Timeout          time.Duration `usage:"connect timeout"`
+	SchemaInitialize bool          `usage:"initialize or re-initialize a schema"`
+	DropSchema       bool          `usage:"drop schema entries before (re)initialization"`
+	*sql.DB          `ignore:"true"`
 }
 
 type User struct {

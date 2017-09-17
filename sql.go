@@ -2,7 +2,6 @@ package persist
 
 import (
 	"database/sql"
-	"os"
 
 	"github.com/davidwalter0/go-cfg"
 	"github.com/davidwalter0/go-persist/mysql"
@@ -68,8 +67,8 @@ func (db *Database) Configure() {
 
 // ConfigEnvWPrefix fill an object with environment vars, if last call
 // generate flags
-func (db *Database) ConfigEnvWPrefix(envPrefix string, lastCall bool) {
-	if lastCall {
+func (db *Database) ConfigEnvWPrefix(envPrefix string, freeze bool) {
+	if freeze {
 		cfg.Process(envPrefix, db)
 	} else {
 		cfg.ProcessHoldFlags(envPrefix, db)
@@ -81,7 +80,7 @@ func (db *Database) ConfigEnvWPrefix(envPrefix string, lastCall bool) {
 	}
 }
 
-// ConnectString returns the db driver connectoin protocol string from
+// ConnectString returns the db driver connection protocol string from
 // the configured Database struct
 func (db *Database) ConnectString() (text string) {
 
@@ -92,7 +91,6 @@ func (db *Database) ConnectString() (text string) {
 		text = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8", db.User, db.Password, db.Host, db.Port, db.Database)
 	default:
 		panic(fmt.Sprintf("ConnectString: driver mode unknown or empty %s valid drivers %v", db.DriverName(), db.DriverNames()))
-		os.Exit(1)
 	}
 	return
 }
@@ -101,14 +99,20 @@ func (db *Database) ConnectString() (text string) {
 func (db *Database) Connect() *Database {
 	switch db.DriverName() {
 	case "pgsql", "postgres":
-		fmt.Println(">", db.ConnectString())
+		if debugging {
+			fmt.Println(">", db.ConnectString())
+		}
 		db.DB = pgsql.Connect(db.DriverName(), db.ConnectString())
 	case "mysql":
-		fmt.Println(">", db.ConnectString())
+		if debugging {
+			fmt.Println(">", db.ConnectString())
+		}
 		db.DB = mysql.Connect(db.DriverName(), db.ConnectString())
 	default:
 		panic(fmt.Sprintf("Connect: driver mode unknown or empty %s valid drivers %v", db.DriverName(), db.DriverNames()))
-		os.Exit(1)
+	}
+	if db.DB == nil {
+		panic(fmt.Sprintf("Connect failed tried with driver %s valid drivers %v", db.DriverName(), db.DriverNames()))
 	}
 	return db
 }
