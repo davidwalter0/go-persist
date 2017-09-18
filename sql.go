@@ -134,9 +134,8 @@ func (db *Database) Initialize(schema schema.DBSchema) {
 }
 
 // Close the Database connection
-func (db *Database) Close() {
-	err := db.DB.Close()
-	CheckError(err)
+func (db *Database) Close() error {
+	return db.DB.Close()
 }
 
 // Insert a row to a database with optional arguments
@@ -146,17 +145,13 @@ func (db *Database) Insert(insert string, args ...interface{}) *sql.Row {
 }
 
 // Query rows from a database
-func (db *Database) Query(query string, args ...interface{}) *sql.Rows {
-	rows, err := db.DB.Query(query, args...)
-	CheckError(err)
-	return rows
+func (db *Database) Query(query string, args ...interface{}) (*sql.Rows, error) {
+	return db.DB.Query(query, args...)
 }
 
 // Prepare a query statement object
-func (db *Database) Prepare(prepare string) *sql.Stmt {
-	statement, err := db.DB.Prepare(prepare)
-	CheckError(err)
-	return statement
+func (db *Database) Prepare(prepare string) (*sql.Stmt, error) {
+	return db.DB.Prepare(prepare)
 }
 
 // DropAll remove the tables in this schema
