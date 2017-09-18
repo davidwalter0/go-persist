@@ -59,23 +59,32 @@ func CheckError(err error) {
 
 // Configure the Database struct from the environment or flags
 func (db *Database) Configure() {
-	cfg.Process("SQL", db)
-	var jsonText []byte
-	jsonText, _ = json.MarshalIndent(db, "", "  ")
-	_ = ioutil.WriteFile("Configure.SQL.json", jsonText, 0777)
+	if err := cfg.Process("SQL", db); err != nil {
+		log.Println(err)
+	}
+
+	if debugging { // insecure option
+		var jsonText []byte
+		jsonText, _ = json.MarshalIndent(db, "", "  ")
+		_ = ioutil.WriteFile("Configure.SQL.json", jsonText, 0777)
+	}
 }
 
 // ConfigEnvWPrefix fill an object with environment vars, if last call
 // generate flags
 func (db *Database) ConfigEnvWPrefix(envPrefix string, freeze bool) {
 	if freeze {
-		cfg.Process(envPrefix, db)
+		if err := cfg.Process(envPrefix, db); err != nil {
+			log.Println(err)
+		}
 	} else {
-		cfg.ProcessHoldFlags(envPrefix, db)
+		if err := cfg.ProcessHoldFlags(envPrefix, db); err != nil {
+			log.Println(err)
+		}
 	}
-	var jsonText []byte
-	jsonText, _ = json.MarshalIndent(db, "", "  ")
 	if debugging { // insecure option
+		var jsonText []byte
+		jsonText, _ = json.MarshalIndent(db, "", "  ")
 		_ = ioutil.WriteFile("ConfigEnvWPrefix."+envPrefix+".json", jsonText, 0777)
 	}
 }
@@ -134,9 +143,8 @@ func (db *Database) Initialize(schema schema.DBSchema) {
 }
 
 // Close the Database connection
-func (db *Database) Close() {
-	err := db.DB.Close()
-	CheckError(err)
+func (db *Database) Close() error {
+	return db.DB.Close()
 }
 
 // Insert a row to a database with optional arguments
@@ -146,17 +154,13 @@ func (db *Database) Insert(insert string, args ...interface{}) *sql.Row {
 }
 
 // Query rows from a database
-func (db *Database) Query(query string, args ...interface{}) *sql.Rows {
-	rows, err := db.DB.Query(query, args...)
-	CheckError(err)
-	return rows
+func (db *Database) Query(query string, args ...interface{}) (*sql.Rows, error) {
+	return db.DB.Query(query, args...)
 }
 
 // Prepare a query statement object
-func (db *Database) Prepare(prepare string) *sql.Stmt {
-	statement, err := db.DB.Prepare(prepare)
-	CheckError(err)
-	return statement
+func (db *Database) Prepare(prepare string) (*sql.Stmt, error) {
+	return db.DB.Prepare(prepare)
 }
 
 // DropAll remove the tables in this schema
